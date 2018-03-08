@@ -1,0 +1,365 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+Exploring White Wines by David Manasco
+========================================================
+
+For this project I will be exploring the data of the white wines database. This dataset contains around 4900 records with different quantitative variables and a quality variable that determines the expert option of the wine. I plan to explore what factors, if any, contribute to the quality of the wine. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using in your analysis in this code
+# chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk. This
+# prevents the code from displaying in the knitted HTML output. You should set
+# echo=FALSE for all code chunks in your file, unless it makes sense for your
+# report to show the code that generated a particular plot.
+
+# The other parameters for "message" and "warning" should also be set to FALSE
+# for other code chunks once you have verified that each plot comes out as you
+# want it to. This will clean up the flow of your report.
+
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(GGally)
+library(reshape2)
+library(plyr)
+library(dplyr)
+
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+white_wines <- read.csv('white_wine.csv')
+```
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cat("Number of observations in dataset: ")
+cat(max(white_wines))
+cat("\n")
+cat("Number of variables in dataset: ")
+cat(length(white_wines))
+```
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+str(white_wines)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary(white_wines)
+```
+
+
+# Univariate Plots Section
+
+
+```{r echo=FALSE, Univariate_Plots, warning=FALSE}
+ggplot(aes(x = quality), data = white_wines) +
+     geom_histogram(binwidth = 1, col="grey") +
+     scale_x_continuous(breaks = 1:10)
+```
+
+You can see from the chart that we have a normal distribution for quality of the wines. With the most common rating being a 6 followed by 5 then 7.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+alc <- ggplot(aes(x = alcohol), data = white_wines) +
+     geom_histogram(binwidth = .25, col="grey") +
+     scale_x_continuous(breaks = 8:13)
+fixedAcid <- ggplot(aes(x = fixed.acidity), data = white_wines) +
+     geom_histogram(binwidth = .5, col="grey") +
+     scale_x_continuous(breaks = 3.5:14.5)
+volatileAcid <- ggplot(aes(x = volatile.acidity), data = white_wines) +
+     geom_histogram(binwidth = .1, col="grey") +
+     scale_x_continuous(breaks = 0:1.2)
+citricAcid <- ggplot(aes(x = citric.acid), data = white_wines) +
+     geom_histogram(binwidth = .1, col="grey") +
+     scale_x_continuous(breaks = 0:1.8)
+residualSugar <- ggplot(aes(x = residual.sugar), data = white_wines) +
+     geom_histogram(binwidth = 1, col="grey")
+chlorides <- ggplot(aes(x = chlorides), data = white_wines) +
+     geom_histogram(binwidth = .05, col="grey")
+sulfurDiox <- ggplot(aes(x = total.sulfur.dioxide), data = white_wines) +
+     geom_histogram(binwidth = 10, col="grey")
+freeSulfurDiox <- ggplot(aes(x = free.sulfur.dioxide), data = white_wines) +
+     geom_histogram(binwidth = 10, col="grey")
+densityWine <- ggplot(aes(x = density), data = white_wines) +
+     geom_histogram(binwidth = .001, col="grey") +
+     scale_x_continuous(breaks = 0.96:1.04)
+ph <- ggplot(aes(x = pH), data = white_wines) +
+     geom_histogram(binwidth = .1, col="grey") +
+     scale_x_continuous(breaks = 2.7:3.9)
+sulphates <- ggplot(aes(x = sulphates), data = white_wines) +
+     geom_histogram(binwidth = .05, col="grey") +
+     scale_x_continuous(breaks = 0.2:1.1)
+grid.arrange(alc, fixedAcid, volatileAcid, citricAcid, residualSugar, chlorides, sulfurDiox, freeSulfurDiox,densityWine,ph,sulphates, ncol = 3)
+```
+
+From the charts above we can see that most of the variables follow a normal distribution except for residual sugar. I cleaned the dataset and got rid of all the data above the 95% quantile. Once we have the cleaned data, i applied 3 different log transformations to understand the distribution. first was log base 10 then log base 2 then squareroot x scale.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+cleanedSugar <- white_wines[white_wines$residual.sugar < quantile(white_wines$residual.sugar, 0.99), ]
+
+p1 <- ggplot(aes(x = residual.sugar), data = cleanedSugar) +
+     geom_histogram(binwidth = .1)
+p4 <- p1 + scale_x_log10()
+p2 <- p1 + scale_x_continuous(trans='log2')
+p3 <- p1 + scale_x_sqrt()
+
+grid.arrange(p1,p4, p2, p3, ncol = 1)
+```
+
+The Residual sugar histogram now denotes a more normal distribution. One interesting thing it that the residual sugar histrogram has a bimodal look with multiple peaks.
+
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+For this dataset there are 4,989 oberservations with 11 quantitative variables. Those variables are pH, Alcohol, fixed acidity, volatile acidity, citric acid, chlorides, free sulfur dioxide, total sulfur dioxide, density, residual sugar, and sulphates. There is also one subjective variable, quality, which gives a way to determine what factors into a better quality raiting.
+
+### What is/are the main feature(s) of interest in your dataset?
+Personally, being a wine drinker, I'd love to determine what factors go into making a better quality wine. I want to find out which variables have a positve effect on quality and which ones have a negative effect on quality. 
+
+### What other features in the dataset do you think will help support your \
+investigation into your feature(s) of interest?
+At this point in the investigation proccess, it is important to investigate the replation ship between all variables. Any of the variables could impact the quality number positively. At this point I suspect that pH and alcohol will have a big effect on quality.
+
+### Did you create any new variables from existing variables in the dataset?
+At this point the only variable I created is the bound sulfur dioxide variable. I created it taking the total sulfur dioxide and subtracting the free sulfur dioxide. I have only created a basic histogram for it, but I plan on using it during the bivariate analysis.
+### Of the features you investigated, were there any unusual distributions? \
+Did you perform any operations on the data to tidy, adjust, or change the form \
+of the data? If so, why did you do this?
+The only features that have an unuasual distribution was residual sugar. This data has a distribution with two peaks around 2 and 8 this leads me to believe there are two types of white wines in the dataset, those with higher sugar content and those with a lower sugar content. I did have to clean up the dataset with regards to residual sugar. There was a major outlier at 65. So i cleaned up the data and only included the data points with those that are lower than 95% quantile. After the data was cleaned up, it was easier to see the distribution. 
+
+
+# Bivariate Plots Section
+
+
+```{r echo=FALSE, Bivariate_Plots, warning=FALSE}
+data(white_wines, package = "reshape")
+cleanWines <- white_wines[,c(-1)]
+pair <- ggpairs(cleanWines,
+  lower = list(continuous = wrap("points", color = "black", alpha = 0.1, size = 0.2))
+)
+pair <- pair + theme(
+  axis.text = element_text(size = 6),
+  axis.title = element_text(size = 6),
+  legend.background = element_rect(fill = "white"),
+  panel.grid.major = element_line(colour = NA),
+  panel.grid.minor = element_blank(),
+  panel.background = element_rect(fill = "grey95")
+)
+pair
+```
+
+This is the ggpairs plot for all of the variables. From this I decided that I needed to get the correlations in a different format so I examine what variables I want to focus on.
+
+```{r echo=FALSE, warning=FALSE}
+cor(cleanWines, use="complete.obs", method="pearson") 
+```
+
+From this we see that there are a few vairables that have a strong correlation on the other. Specifically the relationship between Residual Sugar, density, alcohol, and quality.
+
+```{r echo=FALSE, warning=FALSE}
+impWines <- cleanWines[,c(-1,-2,-3,-5,-6,-7,-10)]
+data(impWines, package = "reshape")
+imppair <- ggpairs(impWines,
+  lower = list(continuous = wrap("points", color = "black", alpha = 0.1, size = 0.2))
+)
+
+imppair <- imppair + theme(
+  axis.text = element_text(size = 6),
+  axis.title = element_text(size = 6),
+  legend.background = element_rect(fill = "white"),
+  panel.grid.major = element_line(colour = NA),
+  panel.grid.minor = element_blank(),
+  panel.background = element_rect(fill = "grey95")
+)
+imppair
+```
+
+Next I created a new data frame that groups the data based on the quality rating. I am looking for the mean of the alcohol, pH, Density, and Residual Sugar. We can then plot those to see how the mean is affected by the quality of the wine.
+
+```{r echo=FALSE, warning=FALSE}
+cleanSugarWines <- impWines[impWines$residual.sugar < quantile(impWines$residual.sugar, 0.99), ]
+bigimppair <- ggpairs(cleanSugarWines,
+  lower = list(continuous = wrap("points", color = "black", alpha = 0.3, size = .5))
+)
+p <- bigimppair[2,1] +
+      geom_point(alpha= 1/10, position = 'jitter', color = 'yellow') +
+      geom_smooth(method = 'lm', color = 'black')
+p 
+```
+
+We can see a strong correlation between residual sugar and the density of the wine. This makes sense as the more sugar is in each wine it would stand to reason that it would be more dense since Sugar is denser that water.
+
+```{r echo=FALSE, warning=FALSE}
+impWines$qualityFactor <- cut(impWines$quality,
+                     breaks=c(-Inf, 5, 7, Inf),
+                     labels=c("low","medium","high"))
+```
+```{r echo=FALSE}
+quality_groups <- group_by(white_wines, quality)
+ww.alc_by_qual <- summarise(quality_groups,
+                            alcohol_mean = mean(alcohol),
+                            pH_mean = mean(pH),
+                            density_mean = mean(density),
+                            residualSugar_mean = mean(residual.sugar),
+                            n = n()
+                            )
+
+ww.alc_by_qual
+```
+
+Next I broke the data set into a long format in order to calculate the mean of 4 variables by quality. I will use these means to see what trends exist in the data
+
+```{r  echo=FALSE, warning=FALSE}
+alcMean <- ggplot(aes(x=quality, y = alcohol_mean), data = ww.alc_by_qual, y) +
+  geom_line(color = 'green') + ggtitle('Alcohol Mean vs Quality') + labs(x='Quality', y=' Alcohol Mean')
+pHMean <- ggplot(aes(x=quality, y = pH_mean), data = ww.alc_by_qual) +
+  geom_line(color = 'orange') + ggtitle('pH Mean vs Quality') + labs(x='Quality', y='pH Mean')
+denMean <- ggplot(aes(x=quality, y = density_mean), data = ww.alc_by_qual) +
+  geom_line(color = 'red') + ggtitle('Density Mean vs Quality') + labs(x='Quality', y='Density')
+resMean <- ggplot(aes(x=quality, y = residualSugar_mean), data = ww.alc_by_qual) +
+  geom_line(color = 'blue') + ggtitle('Residual Sugar Mean vs Quality') + labs(x='Quality', y='Residual Sugar Mean')
+grid.arrange(alcMean, pHMean, denMean, resMean, ncol = 2)
+
+```
+
+From these plots we can see that as the quality of the wine increase so does the mean of alcohol and pH. Inversely we can see that as quality goes up the mean of density and residual sugar lowers
+
+
+# Bivariate Analysis
+
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. How did the feature(s) of interest vary with other features in \
+the dataset?
+
+So While exploring this data set and looking for relationships, some correlations that stuck out to me would be that as quality rating of the wine increases so does the mean of the alcohol content. The same goes for pH mean as well. The higher the quality the more basic the pH is. The other interesting relationship that showed up was that as the density of the wine decreases the quality increases. This would lead me to reason that the lighter the wine is the better quality rating it recieves. 
+
+### Did you observe any interesting relationships between the other features \
+(not the main feature(s) of interest)?
+One of the more interesting things to me that the relationship between residual sugar and density of the wine. This relationship stands to reason because sugar is more dense than just grape juice. 
+
+### What was the strongest relationship you found?
+The strongest relationship I found was that between residual sugar and density. With an r value of about .89 this was the most correlated relationship. 
+The Second most fascinating relationship that I found would have to be between alcohol and quality. With an r value of about .43 this relationship shows us that the higher quality wines also have higher alcohol content.
+
+# Multivariate Plots Section
+
+```{r}
+cleanSugarWines$quality <- cut(cleanSugarWines$quality,
+                     breaks=c(-Inf, 5, 7, Inf),
+                     labels=c("low","medium","high"))
+```
+For the multivariate plots I will first break the data up into quality groups. I decided that anything less than 5 or less is low quality, 6 and 7 are medium quality, and 8 and 9 are high quality wines. The breakdown we have is 1616 low quality wines, 3052 medium quality wines, and 180 high quality wines
+
+```{r echo=FALSE, Multivariate_Plots, warning=FALSE}
+
+data(cleanSugarWines, package = 'reshape')
+imppair_MV <- ggpairs(cleanSugarWines[,c(-6)], mapping = aes(color = quality),
+                   lower = list(continuous = wrap("points", alpha = 0.1), combo = wrap("dot", alpha = 0.1)),
+                   title = "White Wines"
+                   )
+imppair_MV <- imppair_MV + theme(
+  axis.text = element_text(size = 10),
+  axis.title = element_text(size = 10),
+  legend.background = element_rect(fill = "white"),
+  panel.grid.major = element_line(colour = NA),
+  panel.grid.minor = element_blank(),
+  panel.background = element_rect(fill = "grey95")
+)
+imppair_MV
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+imppair_MV[2,1] +
+    geom_point(alpha= .0001, position = 'jitter') +
+    geom_smooth(method = 'lm')
+```
+
+From this chart we can see the correlations based on the quality of the wines. We see that the high quality wines have lower residual sugar content that the medium and low quality wines. The correlation between density and residual sugar for the medium quality lines have a slighty higher correlation vs the other qualities.
+
+```{r echo=FALSE, warning=FALSE}
+imppair_MV[4,1] +
+    geom_point(alpha= .0001, position = 'jitter') +
+    geom_smooth(method = 'lm')
+```
+
+From this chart we see that there is a negative correlation between residual sugar and alcohol percentage. It is interesting to me that the higher quality wines have a higher alcohol content vs the other qualities. This leads us to reason that as residual sugar increases the alcohol content of the wine goes down. 
+
+```{r echo=FALSE, warning=FALSE}
+imppair_MV[4,3] +
+    geom_point(alpha= .0001, position = 'jitter') +
+    geom_smooth(method = 'lm')
+```
+
+From this chart we see that there is a slightly stronger correlation between alcohol and pH value for the higher quality wines. It is also interesting to see that as the alcohol increases so does the pH of the wine. I did not know the relationship between alcohol and pH until I explored this data set.
+
+```{r echo=FALSE, warning=FALSE}
+imppair_MV[4,2] +
+    geom_point(alpha= .0001, position = 'jitter') +
+    geom_smooth(method = 'lm')
+```
+
+From this chart we see that the is a strong negative correlation between density and alcohol. So it seems as the density increases the alcohol content decreases. The highest rated wines have the highest alcohol content as well as the lowest density.
+
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. Were there features that strengthened each other in terms of \
+looking at your feature(s) of interest?
+Some of the relationships I discovered while exploring the multivariate plots were the realtionship between alcohol and ph, as the pH increases so does the alcohol. Another interesting correlation was the relationship between residual sugar and alcohol. It seems that the less residual sugar a wine has, then the higher the alcohol will be.
+
+
+### Were there any interesting or surprising interactions between features?
+The most interesting interaction to me was the relationship between alcohol and density. I had no idea that the more alcohol the wine has the less dense it will be. It all shows that the higher the alcohol content and lower the density the wine has the higher the quality rating is as well.  So a High alcohol, low density wine should be very favorable in terms of rating.
+
+
+------
+
+# Final Plots and Summary
+
+
+
+### Plot One
+```{r echo=FALSE, Plot_One}
+p + ggtitle('Density vs Residual Sugar') + labs(x = 'Residual Sugar', y = 'Density')
+```
+
+### Description One
+
+This chart shows a strong correlation between residual sugar and the density of the wine. This makes sense as the more sugar is in each wine it would stand to reason that it would be more dense since Sugar is denser that water. It is important to understand this relationship as it was the strongest correlation in the dataset at .89
+
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+grid.arrange(alcMean, pHMean, denMean, resMean, ncol = 2) 
+```
+
+### Description Two
+
+These charts show us that as the quality of the wine increase so does the mean of alcohol and pH. Inversely we can see that as quality goes up the mean of density and residual sugar lowers. These are 4 important variable choices to compare against quality. They show us people enjoy a wine that is more basic with a higher alcohol content.
+
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+imppair_MV[4,1] +
+    geom_point(alpha= .0001, position = 'jitter') +
+    geom_smooth(method = 'lm') +
+    labs(x='Residual Sugar', y='Alcohol') +
+    ggtitle('Alcohol vs Residual Sugar by Quality Group')
+```
+
+### Description Three
+
+This chart shows us that there is a negative correlation between residual sugar and alcohol percentage. It is interesting to me that the higher quality wines have a higher alcohol content vs the other qualities. This leads us to reason that as residual sugar increases the alcohol content of the wine goes down.
+
+------
+
+# Reflection
+
+For this exploratory data analysis, I chose the White wines database given the fact that I love white wines. It was really interesting to be able to examine over 4800 different white wines with the checmial breakdowns. It allowed me to get a better understanding about what make a higher quality wine. Specifically a higher quality wine with generally have these traits; Higher Alcohol Content, Lower Residual Sugar, Lower Density, and a higher pH value. To me this is important to know because it can allow you to buy better quality wines. The higher the quality the more enjoyable the experience of drinking is. 

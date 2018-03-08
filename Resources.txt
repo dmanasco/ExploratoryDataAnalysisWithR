@@ -1,0 +1,6 @@
+Resources
+http://www.cookbook-r.com/
+http://sharpsightlabs.com/blog/format-titles-and-axes-in-ggplot2/
+http://ggobi.github.io/ggally/
+https://groups.google.com/forum/#!topic/ggplot2/ZBt4rXQMLQo
+http://r-nold.blogspot.com/2014/11/scatter-plot-matrices-in-r.html
